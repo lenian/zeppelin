@@ -86,8 +86,7 @@ public class IPyFlinkInterpreter extends IPythonInterpreter {
       InterpreterResult result =
               super.internalInterpret("intp.initJavaThread()", context);
       if (result.code() != InterpreterResult.Code.SUCCESS) {
-        throw new InterpreterException("Fail to initJavaThread: " +
-                result.toString());
+        throw new InterpreterException("Fail to initJavaThread: " + context.out.toString());
       }
       flinkInterpreter.setSavepointPathIfNecessary(context);
       flinkInterpreter.setParallelismIfNecessary(context);
@@ -97,7 +96,7 @@ public class IPyFlinkInterpreter extends IPythonInterpreter {
         InterpreterResult result =
                 super.internalInterpret("intp.resetClassLoaderInPythonThread()", context);
         if (result.code() != InterpreterResult.Code.SUCCESS) {
-          LOGGER.warn("Fail to resetClassLoaderInPythonThread: " + result.toString());
+          LOGGER.warn("Fail to resetClassLoaderInPythonThread: " + context.out.toString());
         }
       }
     }
