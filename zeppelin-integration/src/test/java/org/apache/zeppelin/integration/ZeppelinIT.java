@@ -211,7 +211,7 @@ public class ZeppelinIT extends AbstractZeppelinIT {
 
       WebElement depArtifact = pollingWait(By.xpath("//input[@ng-model='setting.depArtifact']"),
           MAX_BROWSER_TIMEOUT_SEC);
-      String artifact = "org.apache.commons:commons-csv:1.1";
+      String artifact = "org.apache.commons:commons-csv:1.9.0";
       depArtifact.sendKeys(artifact);
       driver.findElement(By.xpath("//div[@id='spark']//form//button[1]")).click();
       clickAndWait(By.xpath("//div[@class='modal-dialog'][contains(.,'Do you want to update this interpreter and restart with new settings?')]" +
