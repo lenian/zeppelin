@@ -71,6 +71,10 @@ public class IPySparkInterpreter extends IPythonInterpreter {
     setProperty("zeppelin.py4j.useAuth",
             sparkInterpreter.getSparkVersion().isSecretSocketSupported() + "");
     super.open();
+
+    if (condaEnv != null) {
+      conf.set("spark.pyspark.python", condaEnv + "/bin/python");
+    }
     opened = true;
   }
 
