@@ -528,15 +528,3 @@ Here is an example
 # activate latest tensorflow image as a python environment
 %python.docker activate gcr.io/tensorflow/tensorflow:latest
 ```
-
-## Technical description
-
-For in-depth technical details on current implementation please refer to [python/README.md](https://github.com/apache/zeppelin/blob/master/python/README.md).
-
-
-## Some features not yet implemented in the vanilla Python interpreter
-
-* Interrupt a paragraph execution (`cancel()` method) is currently only supported in Linux and MacOs. 
-If interpreter runs in another operating system (for instance MS Windows) , interrupt a paragraph will close the whole interpreter. 
-A JIRA ticket ([ZEPPELIN-893](https://issues.apache.org/jira/browse/ZEPPELIN-893)) is opened to implement this feature in a next release of the interpreter.
-* Progression bar in webUI  (`getProgress()` method) is currently not implemented.
