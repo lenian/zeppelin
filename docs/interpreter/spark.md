@@ -26,7 +26,7 @@ limitations under the License.
 ## Overview
 [Apache Spark](http://spark.apache.org) is a fast and general-purpose cluster computing system.
 It provides high-level APIs in Java, Scala, Python and R, and an optimized engine that supports general execution graphs.
-Apache Spark is supported in Zeppelin with Spark interpreter group which consists of below six interpreters.
+Apache Spark is supported in Zeppelin with Spark interpreter group which consists of following interpreters.
 
 <table class="table-configuration">
   <tr>
@@ -52,7 +52,17 @@ Apache Spark is supported in Zeppelin with Spark interpreter group which consist
   <tr>
     <td>%spark.r</td>
     <td>SparkRInterpreter</td>
-    <td>Provides an R environment with SparkR support</td>
+    <td>Provides an vanilla R environment with SparkR support</td>
+  </tr>
+  <tr>
+    <td>%spark.ir</td>
+    <td>SparkIRInterpreter</td>
+    <td>Provides an R environment with SparkR support based on Jupyter IRKernel</td>
+  </tr>
+  <tr>
+    <td>%spark.shiny</td>
+    <td>SparkShinyInterpreter</td>
+    <td>Used to create R shiny app with SparkR support</td>
   </tr>
   <tr>
     <td>%spark.sql</td>
@@ -202,7 +212,8 @@ You can also set other Spark properties which are not listed in the table. For a
     <td>
       Overrides Spark UI default URL. Value should be a full URL (ex: http://{hostName}/{uniquePath}.
       In Kubernetes mode, value can be Jinja template string with 3 template variables 'PORT', 'SERVICE_NAME' and 'SERVICE_DOMAIN'.
-      (ex: http://{{PORT}}-{{SERVICE_NAME}}.{{SERVICE_DOMAIN}})
+      (e.g.: http://{{PORT}}-{{SERVICE_NAME}}.{{SERVICE_DOMAIN}}). In yarn mode, value could be a knox url with {{applicationId}} as placeholder,
+      (e.g.: https://knox-server:8443/gateway/yarnui/yarn/proxy/{{applicationId}}/)
      </td>
   </tr>
   <tr>
@@ -224,15 +235,19 @@ You can also set other Spark properties which are not listed in the table. For a
 
 Without any configuration, Spark interpreter works out of box in local mode. But if you want to connect to your Spark cluster, you'll need to follow below two simple steps.
 
-### Export SPARK_HOME
+* Set SPARK_HOME
+* Set master
+
+
+### Set SPARK_HOME
 
 There are several options for setting `SPARK_HOME`.
 
 * Set `SPARK_HOME` in `zeppelin-env.sh`
-* Set `SPARK_HOME` in Interpreter setting page
+* Set `SPARK_HOME` in interpreter setting page
 * Set `SPARK_HOME` via [inline generic configuration](../usage/interpreter/overview.html#inline-generic-confinterpreter) 
 
-#### 1. Set `SPARK_HOME` in `zeppelin-env.sh`
+#### Set `SPARK_HOME` in `zeppelin-env.sh`
 
 If you work with only one version of spark, then you can set `SPARK_HOME` in `zeppelin-env.sh` because any setting in `zeppelin-env.sh` is globally applied.
 
@@ -251,21 +266,21 @@ export HADOOP_CONF_DIR=/usr/lib/hadoop
 ```
 
 
-#### 2. Set `SPARK_HOME` in Interpreter setting page
+#### Set `SPARK_HOME` in interpreter setting page
 
-If you want to use multiple versions of spark, then you need create multiple spark interpreters and set `SPARK_HOME` for each of them. e.g.
-Create a new spark interpreter `spark24` for spark 2.4 and set `SPARK_HOME` in interpreter setting page
+If you want to use multiple versions of spark, then you need to create multiple spark interpreters and set `SPARK_HOME` separately. e.g.
+Create a new spark interpreter `spark24` for spark 2.4 and set its `SPARK_HOME` in interpreter setting page as following,
 <center>
 <img src="{{BASE_PATH}}/assets/themes/zeppelin/img/docs-img/spark_SPARK_HOME24.png" width="80%">
 </center>
 
-Create a new spark interpreter `spark16` for spark 1.6 and set `SPARK_HOME` in interpreter setting page
+Create a new spark interpreter `spark16` for spark 1.6 and set its `SPARK_HOME` in interpreter setting page as following,
 <center>
 <img src="{{BASE_PATH}}/assets/themes/zeppelin/img/docs-img/spark_SPARK_HOME16.png" width="80%">
 </center>
 
 
-#### 3. Set `SPARK_HOME` via [inline generic configuration](../usage/interpreter/overview.html#inline-generic-confinterpreter) 
+#### Set `SPARK_HOME` via [inline generic configuration](../usage/interpreter/overview.html#inline-generic-confinterpreter) 
 
 Besides setting `SPARK_HOME` in interpreter setting page, you can also use inline generic configuration to put the 
 configuration with code together for more flexibility. e.g.
@@ -273,23 +288,26 @@ configuration with code together for more flexibility. e.g.
 <img src="{{BASE_PATH}}/assets/themes/zeppelin/img/docs-img/spark_inline_configuration.png" width="80%">
 </center>
 
-### Set master in Interpreter menu
-After starting Zeppelin, go to **Interpreter** menu and edit **spark.master** property in your Spark interpreter setting. The value may vary depending on your Spark cluster deployment type.
+### Set master
+
+After setting `SPARK_HOME`, you need to set **spark.master** property in either interpreter setting page or inline configuartion. The value may vary depending on your Spark cluster deployment type.
 
 For example,
 
  * **local[*]** in local mode
  * **spark://master:7077** in standalone cluster
  * **yarn-client** in Yarn client mode  (Not supported in spark 3.x, refer below for how to configure yarn-client in Spark 3.x)
- * **yarn-cluster** in Yarn cluster mode  (Not supported in spark 3.x, refer below for how to configure yarn-client in Spark 3.x)
+ * **yarn-cluster** in Yarn cluster mode  (Not supported in spark 3.x, refer below for how to configure yarn-cluster in Spark 3.x)
  * **mesos://host:5050** in Mesos cluster
 
 That's it. Zeppelin will work with any version of Spark and any deployment type without rebuilding Zeppelin in this way.
 For the further information about Spark & Zeppelin version compatibility, please refer to "Available Interpreters" section in [Zeppelin download page](https://zeppelin.apache.org/download.html).
 
-> Note that without exporting `SPARK_HOME`, it's running in local mode with included version of Spark. The included version may vary depending on the build profile.
+Note that without setting `SPARK_HOME`, it's running in local mode with included version of Spark. The included version may vary depending on the build profile. And this included version spark has limited function, so it 
+is always recommended to set `SPARK_HOME`.
 
-> Yarn client mode and local mode will run driver in the same machine with zeppelin server, this would be dangerous for production. Because it may run out of memory when there's many spark interpreters running at the same time. So we suggest you only allow yarn-cluster mode via setting `zeppelin.spark.only_yarn_cluster` in `zeppelin-site.xml`.
+Yarn client mode and local mode will run driver in the same machine with zeppelin server, this would be dangerous for production. Because it may run out of memory when there's many spark interpreters running at the same time. So we suggest you 
+only allow yarn-cluster mode via setting `zeppelin.spark.only_yarn_cluster` in `zeppelin-site.xml`.
 
 #### Configure yarn mode for Spark 3.x
 
@@ -314,22 +332,36 @@ Specifying `yarn-client` & `yarn-cluster` in `spark.master` is not supported in 
 </table>
 
 
+## Binding mode
+
+The default [binding mode](../usage/interpreter/interpreter_binding_mode.html) is `globally shared`. That means all notes share the same Spark interpreter.
+But it is recommended to use `isolated per note` which means each note has own Spark interpreter without affecting each other. But it may run out of your machine resource if too many
+Spark interpreters are created, so it is recommended to use yarn-cluster mode if you run spark in hadoop cluster. And you can use [inline configuration](../usage/interpreter/overview.html#inline-generic-configuration) via `%spark.conf` in the paragraph.
+
+You can also choose `scoped` mode. For `scoped` per note mode, Zeppelin creates separated scala compiler for each note but share a single `SparkContext/SqlContext/SparkSession`.
+
+
 ## SparkContext, SQLContext, SparkSession, ZeppelinContext
 
-SparkContext, SQLContext, SparkSession (for spark 2.x) and ZeppelinContext are automatically created and exposed as variable names `sc`, `sqlContext`, `spark` and `z`, respectively, in Scala, Kotlin, Python and R environments.
+SparkContext, SQLContext, SparkSession (for spark 2.x, 3.x) and ZeppelinContext are automatically created and exposed as variable names `sc`, `sqlContext`, `spark` and `z` respectively, in Scala, Kotlin, Python and R environments.
 
 
 > Note that Scala/Python/R environment shares the same SparkContext, SQLContext, SparkSession and ZeppelinContext instance.
 
-## YARN Mode
+## Yarn Mode
+
 Zeppelin support both yarn client and yarn cluster mode (yarn cluster mode is supported from 0.8.0). For yarn mode, you must specify `SPARK_HOME` & `HADOOP_CONF_DIR`. 
 Usually you only have one hadoop cluster, so you can set `HADOOP_CONF_DIR` in `zeppelin-env.sh` which is applied to all spark interpreters. If you want to use spark against multiple hadoop cluster, then you need to define
 `HADOOP_CONF_DIR` in interpreter setting or via inline generic configuration.
 
+## K8s Mode
+
+Regarding how to run Spark on K8s in Zeppelin, please check [this doc](../quickstart/kubernetes.html).
+
 ## Dependency Management
 
 For spark interpreter, it is not recommended to use Zeppelin's [Dependency Management](../usage/interpreter/dependency_management.html) for managing 
-third party dependencies (`%spark.dep` is removed from Zeppelin 0.9 as well). Instead you should set the standard Spark properties.
+third party dependencies (`%spark.dep` is removed from Zeppelin 0.9 as well). Instead, you should set the standard Spark properties as following:
 
 <table class="table-configuration">
   <tr>
@@ -354,37 +386,37 @@ third party dependencies (`%spark.dep` is removed from Zeppelin 0.9 as well). In
   </tr>
 </table>
 
-You can either set Spark properties in interpreter setting page or set Spark submit arguments in `zeppelin-env.sh` via environment variable `SPARK_SUBMIT_OPTIONS`. 
+As general spark properties, you can set them in via inline configuration or interpreter setting page or in `zeppelin-env.sh` via environment variable `SPARK_SUBMIT_OPTIONS`. 
 For examples:
 
 ```bash
 export SPARK_SUBMIT_OPTIONS="--files <my_file> --jars <my_jar> --packages <my_package>"
 ```
 
-But it is not recommended to set them in `SPARK_SUBMIT_OPTIONS`. Because it will be shared by all spark interpreters, which means you can not set different dependencies for different users.
+To be noticed, `SPARK_SUBMIT_OPTIONS` is deprecated and will be removed in future release.
 
 
 ## PySpark
 
-There're 2 ways to use PySpark in Zeppelin:
+There are 2 ways to use PySpark in Zeppelin:
 
 * Vanilla PySpark
 * IPySpark
 
 ### Vanilla PySpark (Not Recommended)
-Vanilla PySpark interpreter is almost the same as vanilla Python interpreter except Zeppelin inject SparkContext, SQLContext, SparkSession via variables `sc`, `sqlContext`, `spark`.
 
-By default, Zeppelin would use IPython in `%spark.pyspark` when IPython is available, Otherwise it would fall back to the original PySpark implementation.
-If you don't want to use IPython, then you can set `zeppelin.pyspark.useIPython` as `false` in interpreter setting. For the IPython features, you can refer doc
-[Python Interpreter](python.html)
+Vanilla PySpark interpreter is almost the same as vanilla Python interpreter except Spark interpreter inject SparkContext, SQLContext, SparkSession via variables `sc`, `sqlContext`, `spark`.
+
+By default, Zeppelin would use IPython in `%spark.pyspark` when IPython is available (Zeppelin would check whether ipython's prerequisites are met), Otherwise it would fall back to the vanilla PySpark implementation.
 
 ### IPySpark (Recommended)
-You can use `IPySpark` explicitly via `%spark.ipyspark`. IPySpark interpreter is almost the same as IPython interpreter except Zeppelin inject SparkContext, SQLContext, SparkSession via variables `sc`, `sqlContext`, `spark`.
-For the IPython features, you can refer doc [Python Interpreter](python.html)
+
+You can use `IPySpark` explicitly via `%spark.ipyspark`. IPySpark interpreter is almost the same as IPython interpreter except Spark interpreter inject SparkContext, SQLContext, SparkSession via variables `sc`, `sqlContext`, `spark`.
+For the IPython features, you can refer doc [Python Interpreter](python.html#ipython-interpreter-pythonipython-recommended)
 
 ## SparkR
 
-Zeppelin support SparkR via `%spark.r`. Here's configuration for SparkR Interpreter.
+Zeppelin support SparkR via `%spark.r`, `%spark.ir` and `%spark.shiny`. Here's configuration for SparkR Interpreter.
 
 <table class="table-configuration">
   <tr>
@@ -412,12 +444,28 @@ Zeppelin support SparkR via `%spark.r`. Here's configuration for SparkR Interpre
     <td>out.format = 'html', comment = NA, echo = FALSE, results = 'asis', message = F, warning = F, fig.retina = 2</td>
     <td>R plotting options.</td>
   </tr>
+  <tr>
+    <td>zeppelin.R.shiny.iframe_width</td>
+    <td>100%</td>
+    <td>IFrame width of Shiny App</td>
+  </tr>
+  <tr>
+    <td>zeppelin.R.shiny.iframe_height</td>
+    <td>500px</td>
+    <td>IFrame height of Shiny App</td>
+  </tr>
+  <tr>
+    <td>zeppelin.R.shiny.portRange</td>
+    <td>:</td>
+    <td>Shiny app would launch a web app at some port, this property is to specify the portRange via format '<start>:<end>', e.g. '5000:5001'. By default it is ':' which means any port</td>
+  </tr>
 </table>
 
+Refer [R doc](r.html) for how to use R in Zeppelin.
 
 ## SparkSql
 
-Spark Sql Interpreter share the same SparkContext/SparkSession with other Spark interpreter. That means any table registered in scala, python or r code can be accessed by Spark Sql.
+Spark sql interpreter share the same SparkContext/SparkSession with other Spark interpreters. That means any table registered in scala, python or r code can be accessed by Spark sql.
 For examples:
 
 ```scala
@@ -435,11 +483,13 @@ df.createOrReplaceTempView("people")
 select * from people
 ```
 
-By default, each sql statement would run sequentially in `%spark.sql`. But you can run them concurrently by following setup.
+You can write multiple sql statements in one paragraph. Each sql statement is separated by semicolon.
+Sql statement in one paragraph would run sequentially. 
+But sql statements in different paragraphs can run concurrently by the following configuration.
 
 1. Set `zeppelin.spark.concurrentSQL` to true to enable the sql concurrent feature, underneath zeppelin will change to use fairscheduler for spark. And also set `zeppelin.spark.concurrentSQL.max` to control the max number of sql statements running concurrently.
 2. Configure pools by creating `fairscheduler.xml` under your `SPARK_CONF_DIR`, check the official spark doc [Configuring Pool Properties](http://spark.apache.org/docs/latest/job-scheduling.html#configuring-pool-properties)
-3. Set pool property via setting paragraph property. e.g.
+3. Set pool property via setting paragraph local property. e.g.
 
  ```
  %spark(pool=pool1)
@@ -448,20 +498,19 @@ By default, each sql statement would run sequentially in `%spark.sql`. But you c
  ```
 
 This pool feature is also available for all versions of scala Spark, PySpark. For SparkR, it is only available starting from 2.3.0.
- 
-## Interpreter Setting Option
 
-You can choose one of `shared`, `scoped` and `isolated` options when you configure Spark interpreter.
-e.g. 
-
-* In `scoped` per user mode, Zeppelin creates separated Scala compiler for each user but share a single SparkContext.
-* In `isolated` per user mode, Zeppelin creates separated SparkContext for each user.
 
 ## ZeppelinContext
+
 Zeppelin automatically injects `ZeppelinContext` as variable `z` in your Scala/Python environment. `ZeppelinContext` provides some additional functions and utilities.
-See [Zeppelin-Context](../usage/other_features/zeppelin_context.html) for more details.
+See [Zeppelin-Context](../usage/other_features/zeppelin_context.html) for more details. For Spark interpreter, you can use z to display Spark `Dataset/Dataframe`.
+
+
+<img src="{{BASE_PATH}}/assets/themes/zeppelin/img/docs-img/spark_zshow.png">
+
 
 ## Setting up Zeppelin with Kerberos
+
 Logical setup with Zeppelin, Kerberos Key Distribution Center (KDC), and Spark on YARN:
 
 <img src="{{BASE_PATH}}/assets/themes/zeppelin/img/docs-img/kdc_zeppelin.png">

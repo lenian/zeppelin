@@ -89,6 +89,12 @@ Zeppelin supports python language which is very popular in data analytics and ma
   </tr>
 </table>
 
+## Binding mode
+
+The default [binding mode](../usage/interpreter/interpreter_binding_mode.html) is `globally shared`. That means all notes share the same Python interpreter.
+But it is recommended to ues `isolated per note` which means each note has own Python interpreter without affecting each other. But it may run out of your machine resource if too many
+Python interpreters are created. You can [run Python in yarn mode](../interpreter/python.html#run-python-in-yarn-cluster) to achieve multi-tenancy.
+
 
 ## Vanilla Python Interpreter (`%python`)
 
