@@ -188,13 +188,15 @@ public class JDBCInterpreter extends KerberosInterpreter {
     UserGroupInformation.setConfiguration(conf);
     try {
       if (UserGroupInformation.isLoginKeytabBased()) {
-        LOGGER.debug("Trying relogin from keytab");
+        LOGGER.info("Trying relogin from keytab");
         UserGroupInformation.getLoginUser().reloginFromKeytab();
         return true;
       } else if (UserGroupInformation.isLoginTicketBased()) {
-        LOGGER.debug("Trying relogin from ticket cache");
+        LOGGER.info("Trying relogin from ticket cache");
         UserGroupInformation.getLoginUser().reloginFromTicketCache();
         return true;
+      } else {
+        LOGGER.warn("Neither keytab based or ticket based");
       }
     } catch (Exception e) {
       LOGGER.error("Unable to run kinit for zeppelin", e);
@@ -207,6 +209,16 @@ public class JDBCInterpreter extends KerberosInterpreter {
   @Override
   public void open() {
     super.open();
+
+    // login via keytab first in open method, otherwise the underlying runKerbose thread will
+    // fail and cause the interpreter closed.
+    String authType = properties.getProperty("zeppelin.jdbc.auth.type", "SIMPLE")
+            .trim().toUpperCase();
+    if (authType.equalsIgnoreCase("KERBEROS")) {
+      JDBCSecurityImpl.createSecureConfiguration(getProperties(),
+              UserGroupInformation.AuthenticationMethod.KERBEROS);
+    }
+
     for (String propertyKey : properties.stringPropertyNames()) {
       LOGGER.debug("propertyKey: {}", propertyKey);
       String[] keyValue = propertyKey.split("\\.", 2);
