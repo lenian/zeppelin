@@ -428,7 +428,8 @@ public class JDBCInterpreter extends KerberosInterpreter {
         basePropertiesMap.get(dbPrefix).setProperty(PASSWORD_KEY, password);
       }
     } else {
-      basePropertiesMap.get(dbPrefix).setProperty(USER_KEY, user);
+      // if user is not set, then using the login user
+      basePropertiesMap.get(dbPrefix).setProperty(USER_KEY, context.getAuthenticationInfo().getUser());
     }
     jdbcUserConfigurations.setPropertyMap(dbPrefix, basePropertiesMap.get(dbPrefix));
     if (existAccountInBaseProperty(dbPrefix)) {
