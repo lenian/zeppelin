@@ -34,6 +34,13 @@ import java.util.Properties;
 import java.util.StringJoiner;
 import java.util.stream.Collectors;
 
+/**
+ * Launcher for Flink Interpreter, it would launch flink via 2 different ways:
+ * 1. yarn-application mode would use `bin/flink run` to launch flink interpreter
+ *    where it runs in jobmanager
+ * 2. for other modes, Zeppelin would use general java command to launch flink interpreter
+ *    in Zeppelin server side.
+ */
 public class FlinkInterpreterLauncher extends StandardInterpreterLauncher {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(FlinkInterpreterLauncher.class);
@@ -62,6 +69,7 @@ public class FlinkInterpreterLauncher extends StandardInterpreterLauncher {
     // yarn application mode specific logic
     if ("yarn-application".equalsIgnoreCase(flinkExecutionMode)) {
       updateEnvsForYarnApplicationMode(envs, context);
+      updateFlinkExecutionJars(context);
     }
 
     String flinkAppJar = chooseFlinkAppJar(flinkHome);
@@ -80,6 +88,28 @@ public class FlinkInterpreterLauncher extends StandardInterpreterLauncher {
     }
 
     return envs;
+  }
+
+  private void updateFlinkExecutionJars(InterpreterLaunchContext context) {
+    List<String> yarnShipFiles = new ArrayList<>();
+    List<String> newFlinkExecJars = new ArrayList<>();
+    String flinkExecJars = context.getProperties().getProperty("flink.execution.jars");
+    if (StringUtils.isNotBlank(flinkExecJars)) {
+      for (String jar : flinkExecJars.split(",")) {
+        // start with `/` means it is local path
+        if (jar.startsWith("/")) {
+          yarnShipFiles.add(jar);
+          String jarName = jar.substring(jar.lastIndexOf("/") + 1);
+          newFlinkExecJars.add(jarName);
+        } else {
+          newFlinkExecJars.add(jar);
+        }
+      }
+    }
+    String originalYarnShipFiles = context.getProperties().getProperty("yarn.ship-files", "");
+    context.getProperties().put("yarn.ship-files",
+            originalYarnShipFiles + ";" + StringUtils.join(";", yarnShipFiles));
+    context.getProperties().setProperty("flink.execution.jars", StringUtils.join(",", newFlinkExecJars));
   }
 
   // do mapping between configuration of different execution modes.
@@ -133,6 +163,10 @@ public class FlinkInterpreterLauncher extends StandardInterpreterLauncher {
     final String flinkScalaVersion = scalaVersion;
     File flinkInterpreterFolder =
             new File(ZeppelinConfiguration.create().getInterpreterDir(), "flink");
+    if (!flinkInterpreterFolder.exists()) {
+      throw new IOException("flink interpreter folder:" +
+              flinkInterpreterFolder.getAbsolutePath() + " doesn't not exist");
+    }
     List<File> flinkScalaJars =
             Arrays.stream(flinkInterpreterFolder
                     .listFiles(file -> file.getName().endsWith(".jar")))
