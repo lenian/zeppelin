@@ -43,6 +43,7 @@ class KernelServer(kernel_pb2_grpc.JupyterKernelServicer):
         # in all case because ipython does not support run and auto completion at the same time: https://github.com/jupyter/notebook/issues/3763
         # For now we will lock to ensure that there is no concurrent bug that can "hang" the kernel
         self._lock = threading.Lock()
+        self.thread = None
 
     def start(self):
         print("starting...")
@@ -110,6 +111,7 @@ class KernelServer(kernel_pb2_grpc.JupyterKernelServicer):
             payload_reply.append(reply)
 
         t = threading.Thread(name="ConsumerThread", target=execute_worker)
+        self.thread = t
         with self._lock:
             t.start()
             # We want to wait the end of the execution (and queue empty).
@@ -146,6 +148,7 @@ class KernelServer(kernel_pb2_grpc.JupyterKernelServicer):
         return kernel_pb2.CancelResponse()
 
     def complete(self, request, context):
+        print("thread is alive: " + str(self.thread.is_alive()))
         with self._lock:
             reply = self._kc.complete(request.code, request.cursor, reply=True, timeout=None)
         return kernel_pb2.CompletionResponse(matches=reply['content']['matches'])
