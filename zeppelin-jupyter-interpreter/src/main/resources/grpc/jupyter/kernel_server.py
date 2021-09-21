@@ -25,6 +25,8 @@ from concurrent import futures
 import grpc
 import kernel_pb2
 import kernel_pb2_grpc
+import traceback
+
 
 is_py2 = sys.version[0] == '2'
 if is_py2:
@@ -148,10 +150,15 @@ class KernelServer(kernel_pb2_grpc.JupyterKernelServicer):
         return kernel_pb2.CancelResponse()
 
     def complete(self, request, context):
-        print("thread is alive: " + str(self.thread.is_alive()))
-        with self._lock:
-            reply = self._kc.complete(request.code, request.cursor, reply=True, timeout=None)
-        return kernel_pb2.CompletionResponse(matches=reply['content']['matches'])
+        try:
+            print("thread is alive: " + str(self.thread.is_alive()))
+            sys.stdout.flush()
+            with self._lock:
+                reply = self._kc.complete(request.code, request.cursor, reply=True, timeout=None)
+            return kernel_pb2.CompletionResponse(matches=reply['content']['matches'])
+        except Exception:
+            traceback.print_exc()
+            sys.stdout.flush()
 
     def status(self, request, context):
         return kernel_pb2.StatusResponse(status = self._status)
