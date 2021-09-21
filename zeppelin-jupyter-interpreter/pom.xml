@@ -34,7 +34,7 @@
   <properties>
     <interpreter.name>jupyter</interpreter.name>
     <python.py4j.version>0.10.7</python.py4j.version>
-    <grpc.version>1.15.0</grpc.version>
+    <grpc.version>1.40.1</grpc.version>
   </properties>
 
   <dependencies>
