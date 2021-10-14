@@ -21,12 +21,11 @@ import java.io.{BufferedReader, File}
 import java.net.URLClassLoader
 import java.nio.file.{Files, Paths}
 import java.util.Properties
-
 import org.apache.spark.SparkConf
 import org.apache.spark.repl.SparkILoop
 import org.apache.zeppelin.interpreter.thrift.InterpreterCompletion
 import org.apache.zeppelin.interpreter.util.InterpreterOutputStream
-import org.apache.zeppelin.interpreter.{InterpreterContext, InterpreterGroup}
+import org.apache.zeppelin.interpreter.{InterpreterContext, InterpreterGroup, InterpreterResult}
 import org.slf4j.LoggerFactory
 import org.slf4j.Logger
 
@@ -50,6 +49,8 @@ class SparkScala211Interpreter(override val conf: SparkConf,
 
   private var sparkILoop: SparkILoop = _
 
+  private var scalaCompletion: Completion = _
+
   override val interpreterOutput = new InterpreterOutputStream(LOGGER)
 
   override def open(): Unit = {
@@ -60,12 +61,7 @@ class SparkScala211Interpreter(override val conf: SparkConf,
 
     LOGGER.info("Scala shell repl output dir: " + outputDir.getAbsolutePath)
     conf.set("spark.repl.class.outputDir", outputDir.getAbsolutePath)
-    startHttpServer(outputDir).foreach { case (server, uri) =>
-      sparkHttpServer = server
-      conf.set("spark.repl.class.uri", uri)
-    }
     val target = conf.get("spark.repl.target", "jvm-1.6")
-
     val settings = new Settings()
     settings.processArguments(List("-Yrepl-class-based",
       "-Yrepl-outdir", s"${outputDir.getAbsolutePath}"), true)
@@ -96,7 +92,70 @@ class SparkScala211Interpreter(override val conf: SparkConf,
     this.scalaCompletion = reader.completion
 
     createSparkContext()
+    scalaInterpret("import org.apache.spark.SparkContext._")
+    scalaInterpret("import spark.implicits._")
+    scalaInterpret("import spark.sql")
+    scalaInterpret("import org.apache.spark.sql.functions._")
+    // print empty string otherwise the last statement's output of this method
+    // (aka. import org.apache.spark.sql.functions._) will mix with the output of user code
+    scalaInterpret("print(\"\")")
     createZeppelinContext()
+  }
+
+  def interpret(code: String, context: InterpreterContext): InterpreterResult = {
+
+    val originalOut = System.out
+    val printREPLOutput = context.getStringLocalProperty("printREPLOutput", "true").toBoolean
+
+    def _interpret(code: String): scala.tools.nsc.interpreter.Results.Result = {
+      Console.withOut(interpreterOutput) {
+        System.setOut(Console.out)
+        if (printREPLOutput) {
+          interpreterOutput.setInterpreterOutput(context.out)
+        } else {
+          interpreterOutput.setInterpreterOutput(null)
+        }
+        interpreterOutput.ignoreLeadingNewLinesFromScalaReporter()
+
+        val status = scalaInterpret(code) match {
+          case success@scala.tools.nsc.interpreter.IR.Success =>
+            success
+          case scala.tools.nsc.interpreter.IR.Error =>
+            val errorMsg = new String(interpreterOutput.getInterpreterOutput.toByteArray)
+            if (errorMsg.contains("value toDF is not a member of org.apache.spark.rdd.RDD") ||
+              errorMsg.contains("value toDS is not a member of org.apache.spark.rdd.RDD")) {
+              // prepend "import sqlContext.implicits._" due to
+              // https://issues.scala-lang.org/browse/SI-6649
+              context.out.clear()
+              scalaInterpret("import sqlContext.implicits._\n" + code)
+            } else {
+              scala.tools.nsc.interpreter.IR.Error
+            }
+          case scala.tools.nsc.interpreter.IR.Incomplete =>
+            // add print("") at the end in case the last line is comment which lead to INCOMPLETE
+            scalaInterpret(code + "\nprint(\"\")")
+        }
+        context.out.flush()
+        status
+      }
+    }
+    // reset the java stdout
+    System.setOut(originalOut)
+
+    context.out.write("")
+    val lastStatus = _interpret(code) match {
+      case scala.tools.nsc.interpreter.IR.Success =>
+        InterpreterResult.Code.SUCCESS
+      case scala.tools.nsc.interpreter.IR.Error =>
+        InterpreterResult.Code.ERROR
+      case scala.tools.nsc.interpreter.IR.Incomplete =>
+        InterpreterResult.Code.INCOMPLETE
+    }
+
+    lastStatus match {
+      case InterpreterResult.Code.INCOMPLETE => new InterpreterResult( lastStatus, "Incomplete expression" )
+      case _ => new InterpreterResult(lastStatus)
+    }
   }
 
   protected override def completion(buf: String,

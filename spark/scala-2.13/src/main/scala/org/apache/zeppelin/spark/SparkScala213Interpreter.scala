@@ -17,11 +17,12 @@
 
 package org.apache.zeppelin.spark
 
-import java.io.{BufferedReader, File}
+import java.io.{BufferedReader, File, PrintWriter}
 import java.net.URLClassLoader
 import java.nio.file.{Files, Paths}
 import java.util.Properties
 import org.apache.spark.SparkConf
+import org.apache.spark.repl.Main.{outputDir, scalaOptionError}
 import org.apache.spark.repl.SparkILoop
 import org.apache.zeppelin.interpreter.thrift.InterpreterCompletion
 import org.apache.zeppelin.interpreter.util.InterpreterOutputStream
@@ -29,13 +30,14 @@ import org.apache.zeppelin.interpreter.{InterpreterContext, InterpreterGroup, In
 import org.slf4j.LoggerFactory
 import org.slf4j.Logger
 
-import scala.tools.nsc.Settings
+import scala.tools.nsc.{GenericRunnerSettings, Settings}
 import scala.tools.nsc.interpreter._
+import scala.tools.nsc.interpreter.shell.Completion
 
 /**
-  * SparkInterpreter for scala-2.12
+  * SparkInterpreter for scala-2.13
   */
-class SparkScala212Interpreter(override val conf: SparkConf,
+class SparkScala213Interpreter(override val conf: SparkConf,
                                override val depFiles: java.util.List[String],
                                override val properties: Properties,
                                override val interpreterGroup: InterpreterGroup,
@@ -60,7 +62,16 @@ class SparkScala212Interpreter(override val conf: SparkConf,
     LOGGER.info("Scala shell repl output dir: " + outputDir.getAbsolutePath)
     conf.set("spark.repl.class.outputDir", outputDir.getAbsolutePath)
 
-    val settings = new Settings()
+    val interpArguments = List(
+      "-Yrepl-class-based",
+      "-Yrepl-outdir",
+      s"${outputDir.getAbsolutePath}"
+    )
+
+//    val settings = new GenericRunnerSettings(str => {})
+//    settings.processArguments(interpArguments, true)
+
+    val settings = new GenericRunnerSettings(str => {})
     settings.processArguments(List("-Yrepl-class-based",
       "-Yrepl-outdir", s"${outputDir.getAbsolutePath}"), true)
     settings.embeddedDefaults(sparkInterpreterClassLoader)
@@ -71,22 +82,23 @@ class SparkScala212Interpreter(override val conf: SparkConf,
 
     val printReplOutput = properties.getProperty("zeppelin.spark.printREPLOutput", "true").toBoolean
     val replOut = if (printReplOutput) {
-      new JPrintWriter(interpreterOutput, true)
+      new PrintWriter(interpreterOutput, true)
     } else {
-      new JPrintWriter(Console.out, true)
+      new PrintWriter(Console.out, true)
     }
-    sparkILoop = new SparkILoop(None, replOut)
-    sparkILoop.settings = settings
-    sparkILoop.createInterpreter()
-    val in0 = getDeclareField(sparkILoop, "in0").asInstanceOf[Option[BufferedReader]]
-    val reader = in0.fold(sparkILoop.chooseReader(settings))(r => SimpleReader(r, replOut, interactive = true))
+    sparkILoop = new SparkILoop(null, replOut)
+    sparkILoop.createInterpreter(settings)
+    sparkILoop.intp.initializeCompiler()
+    sparkILoop.initializeSpark()
+//    val in0 = getDeclareField(sparkILoop, "in0").asInstanceOf[Option[BufferedReader]]
+//    val reader = in0.fold(sparkILoop.chooseReader(settings))(r => SimpleReader(r, replOut, interactive = true))
+//
+//    sparkILoop.in = reader
+//    sparkILoop.initializeSynchronous()
+//    SparkScala213Interpreter.loopPostInit(this)
+    this.scalaCompletion = sparkILoop.shellCompletion
 
-    sparkILoop.in = reader
-    sparkILoop.initializeSynchronous()
-    SparkScala212Interpreter.loopPostInit(this)
-    this.scalaCompletion = reader.completion
-
-    createSparkContext()
+    //createSparkContext()
 
     scalaInterpret("import org.apache.spark.SparkContext._")
     scalaInterpret("import spark.implicits._")
@@ -96,7 +108,7 @@ class SparkScala212Interpreter(override val conf: SparkConf,
     // (aka. import org.apache.spark.sql.functions._) will mix with the output of user code
     scalaInterpret("print(\"\")")
 
-    createZeppelinContext()
+    //createZeppelinContext()
   }
 
   def interpret(code: String, context: InterpreterContext): InterpreterResult = {
@@ -115,9 +127,9 @@ class SparkScala212Interpreter(override val conf: SparkConf,
         interpreterOutput.ignoreLeadingNewLinesFromScalaReporter()
 
         val status = scalaInterpret(code) match {
-          case success@scala.tools.nsc.interpreter.IR.Success =>
+          case success@scala.tools.nsc.interpreter.Results.Success =>
             success
-          case scala.tools.nsc.interpreter.IR.Error =>
+          case scala.tools.nsc.interpreter.Results.Error =>
             val errorMsg = new String(interpreterOutput.getInterpreterOutput.toByteArray)
             if (errorMsg.contains("value toDF is not a member of org.apache.spark.rdd.RDD") ||
               errorMsg.contains("value toDS is not a member of org.apache.spark.rdd.RDD")) {
@@ -126,9 +138,9 @@ class SparkScala212Interpreter(override val conf: SparkConf,
               context.out.clear()
               scalaInterpret("import sqlContext.implicits._\n" + code)
             } else {
-              scala.tools.nsc.interpreter.IR.Error
+              scala.tools.nsc.interpreter.Results.Error
             }
-          case scala.tools.nsc.interpreter.IR.Incomplete =>
+          case scala.tools.nsc.interpreter.Results.Incomplete =>
             // add print("") at the end in case the last line is comment which lead to INCOMPLETE
             scalaInterpret(code + "\nprint(\"\")")
         }
@@ -141,11 +153,11 @@ class SparkScala212Interpreter(override val conf: SparkConf,
 
     context.out.write("")
     val lastStatus = _interpret(code) match {
-      case scala.tools.nsc.interpreter.IR.Success =>
+      case scala.tools.nsc.interpreter.Results.Success =>
         InterpreterResult.Code.SUCCESS
-      case scala.tools.nsc.interpreter.IR.Error =>
+      case scala.tools.nsc.interpreter.Results.Error =>
         InterpreterResult.Code.ERROR
-      case scala.tools.nsc.interpreter.IR.Incomplete =>
+      case scala.tools.nsc.interpreter.Results.Incomplete =>
         InterpreterResult.Code.INCOMPLETE
     }
 
@@ -155,18 +167,21 @@ class SparkScala212Interpreter(override val conf: SparkConf,
     }
   }
 
+  def scalaInterpret(code: String): scala.tools.nsc.interpreter.Results.Result =
+    sparkILoop.interpret(code)
+
   protected override def completion(buf: String,
                            cursor: Int,
                            context: InterpreterContext): java.util.List[InterpreterCompletion] = {
     val completions = scalaCompletion.complete(buf.substring(0, cursor), cursor).candidates
-      .map(e => new InterpreterCompletion(e, e, null))
-    scala.collection.JavaConversions.seqAsJavaList(completions)
+      .map(e => new InterpreterCompletion(e.defString, e.defString, null))
+    scala.collection.JavaConverters.seqAsJavaList(completions)
   }
 
   protected def bind(name: String, tpe: String, value: Object, modifier: List[String]): Unit = {
     sparkILoop.beQuietDuring {
       val result = sparkILoop.bind(name, tpe, value, modifier)
-      if (result != IR.Success) {
+      if (result != Results.Success) {
         throw new RuntimeException("Fail to bind variable: " + name)
       }
     }
@@ -180,79 +195,7 @@ class SparkScala212Interpreter(override val conf: SparkConf,
     }
   }
 
-  def scalaInterpret(code: String): scala.tools.nsc.interpreter.IR.Result =
-    sparkILoop.interpret(code)
-
   override def getScalaShellClassLoader: ClassLoader = {
     sparkILoop.classLoader
-  }
-
-}
-
-private object SparkScala212Interpreter {
-  /**
-   * This is a hack to call `loopPostInit` at `ILoop`. At higher version of Scala such
-   * as 2.11.12, `loopPostInit` became a nested function which is inaccessible. Here,
-   * we redefine `loopPostInit` at Scala's 2.11.8 side and ignore `loadInitFiles` being called at
-   * Scala 2.11.12 since here we do not have to load files.
-   *
-   * Both methods `loopPostInit` and `unleashAndSetPhase` are redefined, and `phaseCommand` and
-   * `asyncMessage` are being called via reflection since both exist in Scala 2.11.8 and 2.11.12.
-   *
-   * Please see the codes below:
-   * https://github.com/scala/scala/blob/v2.11.8/src/repl/scala/tools/nsc/interpreter/ILoop.scala
-   * https://github.com/scala/scala/blob/v2.11.12/src/repl/scala/tools/nsc/interpreter/ILoop.scala
-   *
-   * See also ZEPPELIN-3810.
-   */
-  private def loopPostInit(interpreter: SparkScala212Interpreter): Unit = {
-    import StdReplTags._
-    import scala.reflect.classTag
-    import scala.reflect.io
-
-    val sparkILoop = interpreter.sparkILoop
-    val intp = sparkILoop.intp
-    val power = sparkILoop.power
-    val in = sparkILoop.in
-
-    def loopPostInit() {
-      // Bind intp somewhere out of the regular namespace where
-      // we can get at it in generated code.
-      intp.quietBind(NamedParam[IMain]("$intp", intp)(tagOfIMain, classTag[IMain]))
-      // Auto-run code via some setting.
-      (replProps.replAutorunCode.option
-        flatMap (f => io.File(f).safeSlurp())
-        foreach (intp quietRun _)
-        )
-      // classloader and power mode setup
-      intp.setContextClassLoader()
-      if (isReplPower) {
-        replProps.power setValue true
-        unleashAndSetPhase()
-        asyncMessage(power.banner)
-      }
-      // SI-7418 Now, and only now, can we enable TAB completion.
-      in.postInit()
-    }
-
-    def unleashAndSetPhase() = if (isReplPower) {
-      power.unleash()
-      intp beSilentDuring phaseCommand("typer") // Set the phase to "typer"
-    }
-
-    def phaseCommand(name: String): Results.Result = {
-      interpreter.callMethod(
-        sparkILoop,
-        "scala$tools$nsc$interpreter$ILoop$$phaseCommand",
-        Array(classOf[String]),
-        Array(name)).asInstanceOf[Results.Result]
-    }
-
-    def asyncMessage(msg: String): Unit = {
-      interpreter.callMethod(
-        sparkILoop, "asyncMessage", Array(classOf[String]), Array(msg))
-    }
-
-    loopPostInit()
   }
 }

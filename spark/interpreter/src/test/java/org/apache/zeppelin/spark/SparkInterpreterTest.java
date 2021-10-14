@@ -90,7 +90,8 @@ public class SparkInterpreterTest {
 
     InterpreterResult result = interpreter.interpret("val a=\"hello world\"", getInterpreterContext());
     assertEquals(InterpreterResult.Code.SUCCESS, result.code());
-    assertEquals("a: String = hello world\n", output);
+    // Use contains instead of equals, because there's behavior different between different scala versions
+    assertTrue(output, output.contains("a: String = hello world\n"));
 
     result = interpreter.interpret("print(a)", getInterpreterContext());
     assertEquals(InterpreterResult.Code.SUCCESS, result.code());
@@ -439,7 +440,8 @@ public class SparkInterpreterTest {
 
     InterpreterResult result = interpreter.interpret("val a=\"hello world\"", getInterpreterContext());
     assertEquals(InterpreterResult.Code.SUCCESS, result.code());
-    assertEquals("a: String = hello world\n", output);
+    // Use contains instead of equals, because there's behavior different between different scala versions
+    assertTrue(output, output.contains("a: String = hello world\n"));
 
     result = interpreter.interpret("print(a)", getInterpreterContext());
     assertEquals(InterpreterResult.Code.SUCCESS, result.code());
@@ -457,7 +459,7 @@ public class SparkInterpreterTest {
     // REPL output get back if we don't set printREPLOutput in paragraph local properties
     result = interpreter.interpret("val a=\"hello world\"", getInterpreterContext());
     assertEquals(InterpreterResult.Code.SUCCESS, result.code());
-    assertEquals("a: String = hello world\n", output);
+    assertTrue(output, output.contains("a: String = hello world\n"));
 
     result = interpreter.interpret("print(a)", getInterpreterContext());
     assertEquals(InterpreterResult.Code.SUCCESS, result.code());

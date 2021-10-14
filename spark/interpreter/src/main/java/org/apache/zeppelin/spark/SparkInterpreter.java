@@ -29,6 +29,7 @@ import org.apache.zeppelin.interpreter.InterpreterException;
 import org.apache.zeppelin.interpreter.InterpreterGroup;
 import org.apache.zeppelin.interpreter.InterpreterResult;
 import org.apache.zeppelin.interpreter.thrift.InterpreterCompletion;
+import org.apache.zeppelin.kotlin.KotlinInterpreter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -83,10 +84,16 @@ public class SparkInterpreter extends AbstractInterpreter {
     if (Boolean.parseBoolean(properties.getProperty("zeppelin.spark.scala.color", "true"))) {
       System.setProperty("scala.color", "true");
     }
+
+//    Class klass = io.netty.buffer.PooledByteBufAllocator.class;
+//    URL location = klass.getResource('/' + klass.getName().replace('.', '/') + ".class");
+//    LOGGER.info("Location: " + location);
+
     this.enableSupportedVersionCheck = java.lang.Boolean.parseBoolean(
         properties.getProperty("zeppelin.spark.enableSupportedVersionCheck", "true"));
     innerInterpreterClassMap.put("2.11", "org.apache.zeppelin.spark.SparkScala211Interpreter");
     innerInterpreterClassMap.put("2.12", "org.apache.zeppelin.spark.SparkScala212Interpreter");
+    innerInterpreterClassMap.put("2.13", "org.apache.zeppelin.spark.SparkScala213Interpreter");
   }
 
   @Override
@@ -96,24 +103,30 @@ public class SparkInterpreter extends AbstractInterpreter {
       for (Map.Entry<Object, Object> entry : getProperties().entrySet()) {
         if (!StringUtils.isBlank(entry.getValue().toString())) {
           conf.set(entry.getKey().toString(), entry.getValue().toString());
+          System.setProperty(entry.getKey().toString(), entry.getValue().toString());
         }
         // zeppelin.spark.useHiveContext & zeppelin.spark.concurrentSQL are legacy zeppelin
         // properties, convert them to spark properties here.
         if (entry.getKey().toString().equals("zeppelin.spark.useHiveContext")) {
           conf.set("spark.useHiveContext", entry.getValue().toString());
+          System.setProperty("spark.useHiveContext", entry.getValue().toString());
         }
         if (entry.getKey().toString().equals("zeppelin.spark.concurrentSQL")
             && entry.getValue().toString().equals("true")) {
           conf.set(SparkStringConstants.SCHEDULER_MODE_PROP_NAME, "FAIR");
+          System.setProperty(SparkStringConstants.SCHEDULER_MODE_PROP_NAME, "FAIR");
         }
       }
       // use local mode for embedded spark mode when spark.master is not found
       if (!conf.contains(SparkStringConstants.MASTER_PROP_NAME)) {
         if (conf.contains("master")) {
           conf.set(SparkStringConstants.MASTER_PROP_NAME, conf.get("master"));
+          System.setProperty(SparkStringConstants.MASTER_PROP_NAME, conf.get("master"));
         } else {
           String masterEnv = System.getenv(SparkStringConstants.MASTER_ENV_NAME);
           conf.set(SparkStringConstants.MASTER_PROP_NAME,
+                  masterEnv == null ? SparkStringConstants.DEFAULT_MASTER_VALUE : masterEnv);
+          System.setProperty(SparkStringConstants.MASTER_PROP_NAME,
                   masterEnv == null ? SparkStringConstants.DEFAULT_MASTER_VALUE : masterEnv);
         }
       }
@@ -226,6 +239,12 @@ public class SparkInterpreter extends AbstractInterpreter {
     return this.innerInterpreter.getZeppelinContext();
   }
 
+  public InterpreterResult deleteInterpret(KotlinInterpreter kotlinInterpreter,
+                                           String code,
+                                           InterpreterContext context) {
+    return innerInterpreter.delegateInterpret(kotlinInterpreter, code, context);
+  }
+
   public SparkContext getSparkContext() {
     return this.sc;
   }
@@ -272,6 +291,8 @@ public class SparkInterpreter extends AbstractInterpreter {
       return "2.11";
     } else if (scalaVersionString.contains("2.12")) {
       return "2.12";
+    } else if (scalaVersionString.contains("version 2.13")) {
+      return "2.13";
     } else {
       throw new InterpreterException("Unsupported scala version: " + scalaVersionString);
     }
