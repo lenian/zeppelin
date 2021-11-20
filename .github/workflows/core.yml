@@ -62,6 +62,8 @@ jobs:
           channel-priority: strict
       - name: Make IRkernel available to Jupyter
         run: |
+          R -e "install.packages('devtools')"
+          R -e "devtools::install_github('IRkernel/IRkernel')"
           R -e "IRkernel::installspec()"
           conda list
           conda info
