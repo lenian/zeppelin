@@ -508,15 +508,15 @@ public abstract class FlinkSqlInterpreter extends AbstractInterpreter {
     key = removeSingleQuote(key);
     value = removeSingleQuote(value);
 
-    if ("execution.runtime-mode".equals(key)) {
-      throw new UnsupportedOperationException("execution.runtime-mode is not supported to set, " +
-              "you can use %flink.ssql & %flink.bsql to switch between streaming mode and batch mode");
-    }
-
-    if (!tableConfigOptions.containsKey(key)) {
-      throw new IOException(key + " is not a valid table/sql config, please check link: " +
-              "https://ci.apache.org/projects/flink/flink-docs-master/docs/dev/table/config/");
-    }
+//    if ("execution.runtime-mode".equals(key)) {
+//      throw new UnsupportedOperationException("execution.runtime-mode is not supported to set, " +
+//              "you can use %flink.ssql & %flink.bsql to switch between streaming mode and batch mode");
+//    }
+//
+//    if (!tableConfigOptions.containsKey(key)) {
+//      throw new IOException(key + " is not a valid table/sql config, please check link: " +
+//              "https://ci.apache.org/projects/flink/flink-docs-master/docs/dev/table/config/");
+//    }
 
     LOGGER.info("Set table config: {}={}", key, value);
     this.tbenv.getConfig().getConfiguration().setString(key, value);

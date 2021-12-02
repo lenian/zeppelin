@@ -125,7 +125,7 @@ public class TableEnvFactory {
     try {
       ImmutablePair<Object, Object> pair = flinkShims.createPlannerAndExecutor(
               classLoader, settings, senv.getJavaEnv(),
-              oldPlannerStreamTableConfig, functionCatalog, catalogManager);
+              oldPlannerStreamTableConfig, moduleManager, functionCatalog, catalogManager);
       Planner planner = (Planner) pair.left;
       Executor executor = (Executor) pair.right;
 
@@ -208,7 +208,7 @@ public class TableEnvFactory {
     try {
       ImmutablePair<Object, Object> pair = flinkShims.createPlannerAndExecutor(
               classLoader, settings, senv.getJavaEnv(),
-              oldPlannerBatchTableConfig, functionCatalog, catalogManager);
+              oldPlannerBatchTableConfig, moduleManager, functionCatalog, catalogManager);
       Planner planner = (Planner) pair.left;
       Executor executor = (Executor) pair.right;
 
@@ -270,7 +270,7 @@ public class TableEnvFactory {
     try {
       ImmutablePair<Object, Object> pair = flinkShims.createPlannerAndExecutor(
               classLoader, settings, senv.getJavaEnv(),
-              streamTableConfig, functionCatalog, catalogManager);
+              streamTableConfig, moduleManager, functionCatalog, catalogManager);
       Planner planner = (Planner) pair.left;
       Executor executor = (Executor) pair.right;
 
@@ -327,7 +327,7 @@ public class TableEnvFactory {
     try {
       ImmutablePair<Object, Object> pair = flinkShims.createPlannerAndExecutor(
               classLoader, settings, senv.getJavaEnv(),
-              streamTableConfig, functionCatalog, catalogManager);
+              streamTableConfig, moduleManager, functionCatalog, catalogManager);
       Planner planner = (Planner) pair.left;
       Executor executor = (Executor) pair.right;
 
@@ -386,7 +386,7 @@ public class TableEnvFactory {
     try {
       ImmutablePair<Object, Object> pair = flinkShims.createPlannerAndExecutor(
               classLoader, settings, senv.getJavaEnv(),
-              batchTableConfig, functionCatalog, catalogManager);
+              batchTableConfig, moduleManager, functionCatalog, catalogManager);
       Planner planner = (Planner) pair.left;
       Executor executor = (Executor) pair.right;
 
@@ -443,7 +443,7 @@ public class TableEnvFactory {
   public void createStreamPlanner(EnvironmentSettings settings) {
     ImmutablePair<Object, Object> pair = flinkShims.createPlannerAndExecutor(
             Thread.currentThread().getContextClassLoader(), settings, senv.getJavaEnv(),
-            streamTableConfig, functionCatalog, catalogManager);
+            streamTableConfig, moduleManager, functionCatalog, catalogManager);
     Planner planner = (Planner) pair.left;
     this.flinkShims.setCatalogManagerSchemaResolver(catalogManager, planner.getParser(), settings);
   }

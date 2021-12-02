@@ -136,7 +136,7 @@ public class FlinkInterpreterLauncher extends StandardInterpreterLauncher {
   private String chooseFlinkAppJar(String flinkHome) throws IOException {
     File flinkLibFolder = new File(flinkHome, "lib");
     List<File> flinkDistFiles =
-            Arrays.stream(flinkLibFolder.listFiles(file -> file.getName().contains("flink-dist_")))
+            Arrays.stream(flinkLibFolder.listFiles(file -> file.getName().contains("flink-dist")))
                     .collect(Collectors.toList());
     if (flinkDistFiles.size() > 1) {
       throw new IOException("More than 1 flink-dist files: " +
@@ -144,7 +144,11 @@ public class FlinkInterpreterLauncher extends StandardInterpreterLauncher {
                       .map(file -> file.getAbsolutePath())
                       .collect(Collectors.joining(",")));
     }
-    String scalaVersion = "2.11";
+    if (flinkDistFiles.isEmpty()) {
+      throw new IOException(String.format("No flink-dist jar found under {0}", flinkHome + "/lib"));
+    }
+
+    String scalaVersion = "2.12";
     if (flinkDistFiles.get(0).getName().contains("2.12")) {
       scalaVersion = "2.12";
     }

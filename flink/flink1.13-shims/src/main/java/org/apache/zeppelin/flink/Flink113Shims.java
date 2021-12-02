@@ -548,7 +548,7 @@ public class Flink113Shims extends FlinkShims {
   @Override
   public ImmutablePair<Object, Object> createPlannerAndExecutor(
           ClassLoader classLoader, Object environmentSettings, Object sEnv,
-          Object tableConfig, Object functionCatalog, Object catalogManager) {
+          Object tableConfig, Object moduleManager, Object functionCatalog, Object catalogManager) {
     EnvironmentSettings settings = (EnvironmentSettings) environmentSettings;
     Executor executor = (Executor) lookupExecutor(classLoader, settings, sEnv);
     Map<String, String> plannerProperties = settings.toPlannerProperties();
