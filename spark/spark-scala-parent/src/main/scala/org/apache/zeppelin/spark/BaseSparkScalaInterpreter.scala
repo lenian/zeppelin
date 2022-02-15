@@ -115,7 +115,10 @@ abstract class BaseSparkScalaInterpreter(val conf: SparkConf,
         }
         interpreterOutput.ignoreLeadingNewLinesFromScalaReporter()
 
-        val status = scalaInterpret(code) match {
+        val status = if (context.getLocalProperties.containsKey("paste")) {
+          pasteInterpret(code)
+        } else {
+          scalaInterpret(code) match {
           case success@scala.tools.nsc.interpreter.IR.Success =>
             success
           case scala.tools.nsc.interpreter.IR.Error =>
@@ -132,6 +135,7 @@ abstract class BaseSparkScalaInterpreter(val conf: SparkConf,
           case scala.tools.nsc.interpreter.IR.Incomplete =>
             // add print("") at the end in case the last line is comment which lead to INCOMPLETE
             scalaInterpret(code + "\nprint(\"\")")
+          }
         }
         context.out.flush()
         status
@@ -141,6 +145,7 @@ abstract class BaseSparkScalaInterpreter(val conf: SparkConf,
     System.setOut(originalOut)
 
     context.out.write("")
+
     val lastStatus = _interpret(code) match {
       case scala.tools.nsc.interpreter.IR.Success =>
         InterpreterResult.Code.SUCCESS
@@ -160,6 +165,8 @@ abstract class BaseSparkScalaInterpreter(val conf: SparkConf,
     interpret(code, InterpreterContext.get())
 
   protected def scalaInterpret(code: String): scala.tools.nsc.interpreter.IR.Result
+
+  protected def pasteInterpret(code: String): scala.tools.nsc.interpreter.IR.Result
 
   protected def getProgress(jobGroup: String, context: InterpreterContext): Int = {
     JobProgressUtil.progress(sc, jobGroup)

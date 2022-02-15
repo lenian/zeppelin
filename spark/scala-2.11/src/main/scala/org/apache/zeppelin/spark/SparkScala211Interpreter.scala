@@ -21,7 +21,6 @@ import java.io.{BufferedReader, File}
 import java.net.URLClassLoader
 import java.nio.file.{Files, Paths}
 import java.util.Properties
-
 import org.apache.spark.SparkConf
 import org.apache.spark.repl.SparkILoop
 import org.apache.zeppelin.interpreter.thrift.InterpreterCompletion
@@ -30,6 +29,7 @@ import org.apache.zeppelin.interpreter.{InterpreterContext, InterpreterGroup}
 import org.slf4j.LoggerFactory
 import org.slf4j.Logger
 
+import scala.reflect.internal.util.BatchSourceFile
 import scala.tools.nsc.Settings
 import scala.tools.nsc.interpreter._
 
@@ -125,6 +125,15 @@ class SparkScala211Interpreter(override val conf: SparkConf,
 
   def scalaInterpret(code: String): scala.tools.nsc.interpreter.IR.Result =
     sparkILoop.interpret(code)
+
+  def pasteInterpret(code: String): scala.tools.nsc.interpreter.IR.Result = {
+    val result = sparkILoop.intp.compileSources(new BatchSourceFile("label", code))
+    if (result) {
+      IR.Success
+    } else {
+      IR.Error
+    }
+  }
 
   override def getScalaShellClassLoader: ClassLoader = {
     sparkILoop.classLoader
