@@ -284,6 +284,17 @@ public class LuceneSearchTest {
     assertEquals(1, resultForQuery("NotebookN").size());
   }
 
+  @Test
+  public void indexNoteId() throws IOException, InterruptedException {
+    String note1Id = newNoteWithParagraph("Notebook1", "test");
+    drainSearchEvents();
+
+    List<Map<String, String>> results = resultForQuery(note1Id);
+    assertEquals(1, results.size());
+    assertEquals(note1Id, results.get(0).get("id"));
+    assertEquals("Notebook1", results.get(0).get("text"));
+  }
+
   private List<Map<String, String>> resultForQuery(String q) {
     return noteSearchService.query(q);
   }

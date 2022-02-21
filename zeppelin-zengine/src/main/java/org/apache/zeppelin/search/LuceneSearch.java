@@ -25,6 +25,7 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import javax.activation.FileDataSource;
 import javax.annotation.PreDestroy;
 import javax.inject.Inject;
 
@@ -123,7 +124,7 @@ public class LuceneSearch extends SearchService {
       IndexSearcher indexSearcher = new IndexSearcher(indexReader);
       Analyzer analyzer = new StandardAnalyzer();
       MultiFieldQueryParser parser =
-          new MultiFieldQueryParser(new String[] {SEARCH_FIELD_TEXT, SEARCH_FIELD_TITLE}, analyzer);
+          new MultiFieldQueryParser(new String[] {ID_FIELD, SEARCH_FIELD_TEXT, SEARCH_FIELD_TITLE}, analyzer);
 
       Query query = parser.parse(queryStr);
 
@@ -315,6 +316,7 @@ public class LuceneSearch extends SearchService {
       Date date = p.getDateStarted() != null ? p.getDateStarted() : p.getDateCreated();
       doc.add(new LongPoint("modified", date.getTime()));
     } else {
+      doc.add(new TextField(SEARCH_FIELD_TITLE, id, Field.Store.YES));
       doc.add(new TextField(SEARCH_FIELD_TEXT, noteName, Field.Store.YES));
     }
     return doc;
