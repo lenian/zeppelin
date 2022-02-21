@@ -120,6 +120,7 @@ import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.eclipse.jetty.webapp.WebAppContext;
 import org.eclipse.jetty.websocket.jsr356.server.deploy.WebSocketServerContainerInitializer;
 import org.eclipse.jetty.websocket.servlet.WebSocketServlet;
+import org.eclipse.jetty.servlets.CrossOriginFilter;
 import org.glassfish.hk2.api.Immediate;
 import org.glassfish.hk2.api.ServiceLocator;
 import org.glassfish.hk2.api.ServiceLocatorFactory;
@@ -601,7 +602,9 @@ public class ZeppelinServer extends ResourceConfig {
     webApp.addServlet(new ServletHolder(setupServlet(webApp, conf)), "/*");
     contexts.addHandler(webApp);
 
-    webApp.addFilter(new FilterHolder(CorsFilter.class), "/*", EnumSet.allOf(DispatcherType.class));
+    FilterHolder corsFilterHolder = new FilterHolder(CrossOriginFilter.class);
+    corsFilterHolder.setInitParameter(CrossOriginFilter.ALLOWED_ORIGINS_PARAM, StringUtils.join(conf.getAllowedOrigins(), ","));
+    webApp.addFilter(corsFilterHolder, "/*", EnumSet.allOf(DispatcherType.class));
 
     webApp.setInitParameter(
         "org.eclipse.jetty.servlet.Default.dirAllowed",
