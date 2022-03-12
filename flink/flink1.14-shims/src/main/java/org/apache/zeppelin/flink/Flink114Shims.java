@@ -265,6 +265,7 @@ public class Flink114Shims extends FlinkShims {
       final ExecutorFactory executorFactory =
               FactoryUtil.discoverFactory(
                       classLoader, ExecutorFactory.class, ((EnvironmentSettings) settings).getExecutor());
+      LOGGER.info("ExecutorFactory for {}: {}", sEnv.getClass().getName(), executorFactory.getClass().getName());
       final Method createMethod =
               executorFactory
                       .getClass()
@@ -284,6 +285,7 @@ public class Flink114Shims extends FlinkShims {
           Object tableConfig, Object functionCatalog, Object catalogManager) {
     EnvironmentSettings settings = (EnvironmentSettings) environmentSettings;
     Executor executor = (Executor) lookupExecutor(classLoader, environmentSettings, sEnv);
+    LOGGER.info("ExecutorFactory for {}: {}", sEnv.getClass().getName(), executor.getClass().getName());
     Planner planner = PlannerFactoryUtil.createPlanner(settings.getPlanner(), executor,
             (TableConfig) tableConfig,
             (CatalogManager) catalogManager,

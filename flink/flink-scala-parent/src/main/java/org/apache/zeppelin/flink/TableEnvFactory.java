@@ -128,7 +128,6 @@ public class TableEnvFactory {
               oldPlannerStreamTableConfig, functionCatalog, catalogManager);
       Planner planner = (Planner) pair.left;
       Executor executor = (Executor) pair.right;
-
       Class clazz = Class
                 .forName("org.apache.flink.table.api.bridge.scala.internal.StreamTableEnvironmentImpl");
 
@@ -165,7 +164,7 @@ public class TableEnvFactory {
                         Executor.class,
                         boolean.class,
                         ClassLoader.class);
-        return (TableEnvironment) constructor.newInstance(
+        TableEnvironment tbenv = (TableEnvironment) constructor.newInstance(
                 oldPlannerCatalogManager,
                 moduleManager,
                 oldPlannerFunctionCatalog,
@@ -175,6 +174,8 @@ public class TableEnvFactory {
                 executor,
                 settings.isStreamingMode(),
                 classLoader);
+        LOGGER.info("Created StreamTableEnvironment: {}", tbenv.getClass().getName());
+        return tbenv;
       }
 
     } catch (Exception e) {
@@ -330,6 +331,7 @@ public class TableEnvFactory {
               streamTableConfig, functionCatalog, catalogManager);
       Planner planner = (Planner) pair.left;
       Executor executor = (Executor) pair.right;
+      LOGGER.info("Executor: {}", executor.getClass().getName());
 
       Class clazz = Class
                 .forName("org.apache.flink.table.api.bridge.java.internal.StreamTableEnvironmentImpl");
@@ -366,6 +368,7 @@ public class TableEnvFactory {
                         Executor.class,
                         boolean.class,
                         ClassLoader.class);
+        LOGGER.info("Create StreamTableEnvironment via constructor: {}", constructor.toString());
         return (TableEnvironment) constructor.newInstance(catalogManager,
                 moduleManager,
                 functionCatalog,

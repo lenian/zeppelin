@@ -25,6 +25,7 @@ import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.zeppelin.flink.internal.FlinkILoop;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,6 +36,7 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -62,14 +64,28 @@ public class ApplicationModeStreamEnvironment extends StreamExecutionEnvironment
 
   @Override
   public JobExecutionResult execute() throws Exception {
+    LOGGER.info("execute()");
     updateDependencies();
     return super.execute();
   }
 
   @Override
   public JobClient executeAsync(String jobName) throws Exception {
+    LOGGER.info("execute(jobName)");
     updateDependencies();
     return super.executeAsync(jobName);
+  }
+
+  public JobExecutionResult execute(StreamGraph streamGraph) throws Exception {
+    LOGGER.info("execute(jobName)");
+    updateDependencies();
+    return super.execute(streamGraph);
+  }
+
+  public JobClient executeAsync(StreamGraph streamGraph) throws Exception {
+    LOGGER.info("execute(jobName)");
+    updateDependencies();
+    return super.executeAsync(streamGraph);
   }
 
   private void updateDependencies() throws Exception {
@@ -79,6 +95,7 @@ public class ApplicationModeStreamEnvironment extends StreamExecutionEnvironment
             "Only ATTACHED mode is supported by the scala shell.");
 
     final List<URL> updatedJarFiles = getUpdatedJarFiles();
+    LOGGER.info("Add scala shell jars: {}", updatedJarFiles.stream().map(e -> e.toString()).collect(Collectors.joining()));
     ConfigUtils.encodeCollectionToConfig(
             configuration, PipelineOptions.JARS, updatedJarFiles, URL::toString);
   }

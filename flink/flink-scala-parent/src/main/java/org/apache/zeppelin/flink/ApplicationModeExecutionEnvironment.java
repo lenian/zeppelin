@@ -25,13 +25,17 @@ import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
+import org.apache.flink.util.StringUtils;
 import org.apache.zeppelin.flink.internal.FlinkILoop;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -41,6 +45,8 @@ import static org.apache.flink.util.Preconditions.checkState;
  * Need to add jars of scala shell before submitting jobs.
  */
 public class ApplicationModeExecutionEnvironment extends ExecutionEnvironment {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(ApplicationModeExecutionEnvironment.class);
 
   private FlinkILoop flinkILoop;
   private FlinkScalaInterpreter flinkScalaInterpreter;
@@ -74,6 +80,7 @@ public class ApplicationModeExecutionEnvironment extends ExecutionEnvironment {
             "Only ATTACHED mode is supported by the scala shell.");
 
     final List<URL> updatedJarFiles = getUpdatedJarFiles();
+    LOGGER.info("Add updatedJarFiles: " + updatedJarFiles.stream().map(e -> e.toString()).collect(Collectors.joining(", ")));
     ConfigUtils.encodeCollectionToConfig(
             configuration, PipelineOptions.JARS, updatedJarFiles, URL::toString);
   }
